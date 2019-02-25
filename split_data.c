@@ -3,7 +3,7 @@
 #include <string.h>
 #include <mpi.h>
 
-#define BLOCK_SIZE 8 //Block size in bytes -> 512
+#define BLOCK_SIZE 512 //Block size in bytes -> 512, smaller values for testing
 
 int main(int argc, char** argv)
 {	
@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 
 	//printf("Creating\n");
 		
-	FILE* fp = fopen("test.txt", "r"); //test_file.txt is input file
+	FILE* fp = fopen("test_file.txt", "r"); //test_file.txt is the main input file, test.txt for testing
 	if(fp==NULL)
 	{
 		printf("No such file exists\n");
@@ -44,13 +44,15 @@ int main(int argc, char** argv)
 		// TODO
 		// Hashing individual blocks
 		
-		if(rank == 4)printf("Process%d: %s Next offset:%ld\n",rank, curr, offset);
+		if(rank == 4)printf("Process%d: %s Next offset:%ld\n",rank, curr, offset);//test only
 		
 	}
 
 	//Add padding
 	if(result<BLOCK_SIZE && result>0){
 		printf("%ld\n",result );
+		//TODO
+		//Padding
 	}
 
 
