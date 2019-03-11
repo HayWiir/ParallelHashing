@@ -7,11 +7,27 @@
 
 #define BLOCK_SIZE 512	 //Block size in bytes -> 512, smaller values for testing
 
-int mergeandhash(int *hashed_blocks, int index)
+int mergeandhash(unsigned char **hashed_blocks, int first_index)
 {
 	//TODO
 	//Implement fake padding
+	int i, j, n;
+	unsigned char RES[MD5_DIGEST_LENGTH];   
+	unsigned char new[2*MD5_DIGEST_LENGTH];
 
+	for(i=first_index*2, n=0; n<2 ; i++, n++)
+	{
+		for(j=0; j<MD5_DIGEST_LENGTH; j++){
+			new[n*MD5_DIGEST_LENGTH + j] = hashed_blocks[i][j];
+		}
+	}
+
+ 	//Below func call results in different hash ??
+ 	//MD5(hashed_blocks[first_index*2], 2 * (sizeof(hashed_blocks[first_index*2])/sizeof(hashed_blocks[first_index*2][0])), RES);
+	
+	MD5(new, sizeof(new), RES);
+	for(i=0; i<MD5_DIGEST_LENGTH; i++)
+		hashed_blocks[first_index][i] = RES[i];
 
 }
 
@@ -51,10 +67,10 @@ int main(int argc, char** argv)
 	MPI_Bcast(&num_blocks_per_process, 1, MPI_LONG, 0, MPI_COMM_WORLD);
 
 	hash_count=0;
-	int **hashed_blocks = (int**) malloc(num_blocks_per_process * sizeof(int*));
+	unsigned char **hashed_blocks = (unsigned char**) malloc(num_blocks_per_process * sizeof(unsigned char*));
 	for(i=0;i<num_blocks_per_process; i++)
 	{
-		hashed_blocks[i] = (int *) malloc(MD5_DIGEST_LENGTH * sizeof(int));
+		hashed_blocks[i] = (unsigned char *) malloc(MD5_DIGEST_LENGTH * sizeof(unsigned char));
 	}
 	
 
@@ -81,7 +97,7 @@ int main(int argc, char** argv)
 		// {	
 		// 	printf("Process%d ", rank);
 		// 	for(i = 0; i < MD5_DIGEST_LENGTH; i++)
-  //   			printf("%02x", RES[i]);
+  //   			printf("%02x", hashed_blocks[hash_count-1][i]);
 		// 	printf("\tNext offset:%ld\n", offset);//test only
 
 		// }
@@ -95,9 +111,24 @@ int main(int argc, char** argv)
  		for(i=0; i<MD5_DIGEST_LENGTH; i++)
 	 		hashed_blocks[hash_count][i] = RES[i];
 	 	hash_count++;
-	}	
+	}
+
+	//Merge and hash INTRA-process
+	while (hash_count!=1)
+	{
+		for(i=0; i<hash_count/2; i++)
+			mergeandhash(hashed_blocks, i);
+
+		hash_count = hash_count/2 + hash_count%2;
+	}
+
+	// printf("Process%d ", rank);
+	// for(i = 0; i < MD5_DIGEST_LENGTH; i++)
+	// 	printf("%02x", hashed_blocks[0][i]);
+	// printf("\n");
 
 
+	//TODO Merge and hash INTER-PROCESS
 	
 	MPI_Finalize();
 
