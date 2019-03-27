@@ -7,17 +7,20 @@
 
 #define BLOCK_SIZE 512	 //Block size in bytes -> 512, smaller values for testing
 
-int mergeandhash(unsigned char **hashed_blocks, int first_index)
+//TODO
+//Take file name as command line arg
+//Assert num processes to be power of 2
+
+void mergeandhash(unsigned char **hashed_blocks, int first_index)
 {
-	//TODO
-	//Implement fake padding
 	int i, j, n;
 	unsigned char RES[MD5_DIGEST_LENGTH];   
 	unsigned char new[2*MD5_DIGEST_LENGTH];
 
 	for(i=first_index*2, n=0; n<2 ; i++, n++)
 	{
-		for(j=0; j<MD5_DIGEST_LENGTH; j++){
+		for(j=0; j<MD5_DIGEST_LENGTH; j++)
+		{
 			new[n*MD5_DIGEST_LENGTH + j] = hashed_blocks[i][j];
 		}
 	}
@@ -27,17 +30,22 @@ int mergeandhash(unsigned char **hashed_blocks, int first_index)
 	
 	MD5(new, sizeof(new), RES);
 	for(i=0; i<MD5_DIGEST_LENGTH; i++)
+	{
 		hashed_blocks[first_index][i] = RES[i];
+	}
 
 }
+
+
 
 int main(int argc, char** argv)
 {	
 
 	//printf("Hello\n");
-	int size, rank, i;
+	int size, rank, i, tree_height, jump;
 	long int file_size, offset, num_blocks, num_blocks_per_process, hash_count;
 	char* curr;
+	MPI_Status status;
 
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -104,7 +112,8 @@ int main(int argc, char** argv)
 	}
 
 	//Padding unecessary for current hashing algo (MD5) (For blocks with size<BLOCK_SIZE)
-	if(result<BLOCK_SIZE && result>0){
+	if(result<BLOCK_SIZE && result>0)
+	{
 		unsigned char RES[MD5_DIGEST_LENGTH];        
  		MD5(curr, sizeof(curr)/sizeof(curr[0]), RES);
 
@@ -127,9 +136,61 @@ int main(int argc, char** argv)
 	// 	printf("%02x", hashed_blocks[0][i]);
 	// printf("\n");
 
+	MPI_Barrier(MPI_COMM_WORLD);
 
-	//TODO Merge and hash INTER-PROCESS
-	
+	//Implement for pow(2,n) number of processes ONLY
+
+	tree_height = size;
+	jump = 2;
+	while(tree_height!=1)
+	{	
+		//size >>= 1;
+		tree_height/=2;
+		for(i=0; i<size; i+=(jump/2))
+		{
+			if(rank==i && i%jump==0)
+			{	
+				//get hash from #rank+jump/2 process
+				MPI_Recv(hashed_blocks[1], MD5_DIGEST_LENGTH, MPI_UNSIGNED_CHAR, rank+(jump/2), 0, MPI_COMM_WORLD, &status);
+
+
+					// printf("Height %d, Process%d ", tree_height, rank);
+					// for(i = 0; i < MD5_DIGEST_LENGTH; i++)
+					// 	printf("%02x", hashed_blocks[0][i]);
+					
+
+					// printf(" Height %d, Process%d ", tree_height, rank+(jump/2));
+					// for(i = 0; i < MD5_DIGEST_LENGTH; i++)
+					// 	printf("%02x", hashed_blocks[1][i]);
+					// printf("\n");
+
+
+
+				//merge and hash for process #rank and #rank+(jump/2)
+				mergeandhash(hashed_blocks, 0);
+			}
+
+			else if(rank==i && i%jump!=0)
+			{
+				//Send to #rank-(jump/2) process
+				MPI_Send(hashed_blocks[0], MD5_DIGEST_LENGTH, MPI_UNSIGNED_CHAR, rank-(jump/2), 0, MPI_COMM_WORLD);
+			}			
+		}
+		
+		MPI_Barrier(MPI_COMM_WORLD);
+		jump*=2;
+		//tree_height++;
+	}
+
+	//Process 0 has final hash
+	if(rank==0)	
+	{
+		printf("Hash: ");
+		for(i = 0; i < MD5_DIGEST_LENGTH; i++)
+			printf("%02x", hashed_blocks[0][i]);
+		printf("\n");
+	}
+
 	MPI_Finalize();
 
 	return 0;
