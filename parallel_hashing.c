@@ -79,7 +79,7 @@ int main(int argc, char** argv)
 	for(i=0;i<num_blocks_per_process; i++)
 	{
 		hashed_blocks[i] = (unsigned char *) malloc(MD5_DIGEST_LENGTH * sizeof(unsigned char));
-	}	
+	}
 	
 
 	offset = rank*BLOCK_SIZE; //Get first offset for each process
