@@ -46,7 +46,7 @@ int main(int argc, char** argv)
 	long int file_size, offset, num_blocks, num_blocks_per_process, hash_count;
 	char* curr;
 	MPI_Status status;
-
+	double start, stop;
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -61,7 +61,8 @@ int main(int argc, char** argv)
 	}
 
 	if(rank==0)
-	{
+	{	
+		start = MPI_Wtime();
 		fseek(fp, 0L, SEEK_END);
 		file_size = ftell(fp);
 		rewind(fp);
@@ -184,11 +185,14 @@ int main(int argc, char** argv)
 
 	//Process 0 has final hash
 	if(rank==0)	
-	{
+	{	
+		stop = MPI_Wtime();
 		printf("Hash: ");
 		for(i = 0; i < MD5_DIGEST_LENGTH; i++)
 			printf("%02x", hashed_blocks[0][i]);
 		printf("\n");
+
+		printf("Time taken by %d processes is %f\n",size, stop-start);
 	}
 
 	MPI_Finalize();
