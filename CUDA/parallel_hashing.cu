@@ -54,14 +54,22 @@ inline void __cudaCheckError( const char *file, const int line )
 
 int main()
 {
-
+	//host data
 	int i;
 	char* data;
 	unsigned char *hash_table, *final_hash;
+	float elapsed1=0, elapsed2 = 0;
 
+	//device data
 	char* d_data;
 	unsigned char* d_hash;
 	int* d_filesize;
+
+	//time measurement
+	cudaEvent_t start, stop;
+	CudaSafeCall(cudaEventCreate(&start));
+	CudaSafeCall(cudaEventCreate(&stop));
+
 
 	FILE* fp = fopen("test_file.txt", "r");
 	if(fp==NULL)
@@ -78,20 +86,26 @@ int main()
 	CudaSafeCall(cudaMalloc((void**) &d_data, filesize));
 	CudaSafeCall(cudaMalloc((void**) &d_hash, NTHREAD*MD5_DIGEST_LENGTH*sizeof(unsigned char)));
 	CudaSafeCall(cudaMalloc((void**) &d_filesize, sizeof(int)));
-
 	CudaSafeCall(cudaMemcpy(d_data, data, filesize, cudaMemcpyHostToDevice));
 	CudaSafeCall(cudaMemcpy(d_filesize, &filesize, sizeof(int), cudaMemcpyHostToDevice));
 
+	CudaSafeCall(cudaEventRecord(start, 0));
 	hash_blocks_intra<<<1,NTHREAD>>>(d_data, d_hash, d_filesize);
 	CudaCheckError();
+	CudaSafeCall(cudaEventRecord(stop, 0));
+	CudaSafeCall(cudaEventSynchronize (stop) );
+	CudaSafeCall(cudaEventElapsedTime(&elapsed1, start, stop) );
 
 	hash_table = (unsigned char*) malloc(NTHREAD*MD5_DIGEST_LENGTH*sizeof(unsigned char));
 	CudaSafeCall(cudaMemcpy(hash_table, d_hash, NTHREAD*MD5_DIGEST_LENGTH*sizeof(unsigned char), cudaMemcpyDeviceToHost));
 
 
-
+	CudaSafeCall(cudaEventRecord(start, 0));
 	hash_blocks_inter<<<1,1>>>(d_hash);
 	CudaCheckError();
+	CudaSafeCall(cudaEventRecord(stop, 0));
+	CudaSafeCall(cudaEventSynchronize (stop) );
+	CudaSafeCall(cudaEventElapsedTime(&elapsed2, start, stop) );
 
 	final_hash = (unsigned char*) malloc(MD5_DIGEST_LENGTH*sizeof(unsigned char));
 	CudaSafeCall(cudaMemcpy(hash_table, d_hash, NTHREAD*MD5_DIGEST_LENGTH*sizeof(unsigned char), cudaMemcpyDeviceToHost));
@@ -100,7 +114,7 @@ int main()
 	for(i=0; i<MD5_DIGEST_LENGTH; i++)
 		printf("%02x", (unsigned char) hash_table[i]);
 	printf("\n");
-
+	printf("Time taken by %d threads is %f", NTHREAD, elapsed1+elapsed2);
 	cudaFree(d_data);
 	cudaFree(d_hash);
 	return 0;
