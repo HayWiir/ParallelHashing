@@ -16,6 +16,8 @@ An implementation of a hash tree using CUDA and MPI
 - Build the project
 - Execute as C/C++ application (remotely or locally)
 - Execution has been tested locally on a GPU (NVIDIA 920M 1.7G)
+- Number of threads can be changed by changing NTHREADS in `util.h`
+- NTHREADS should be a power of 2
 
 
 
