@@ -1,6 +1,6 @@
 #include "md5_cuda.h"
 #define BLOCK_SIZE 512
-#define NTHREAD 64
+#define NTHREAD 1024
 
 __global__ void hash_blocks_intra(char* data, unsigned char* hash_table, int* d_filesize)
 {

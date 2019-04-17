@@ -1,4 +1,5 @@
 //mpicc parallel_hashing.c -o sd -lssl -lcrypto
+//base64 /dev/urandom | head -c 1073741824 > test_file.txt Random file genreation
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,7 +63,6 @@ int main(int argc, char** argv)
 
 	if(rank==0)
 	{	
-		start = MPI_Wtime();
 		fseek(fp, 0L, SEEK_END);
 		file_size = ftell(fp);
 		rewind(fp);
@@ -96,7 +96,7 @@ int main(int argc, char** argv)
 		fseek(fp, offset, SEEK_SET);
 
 		unsigned char RES[MD5_DIGEST_LENGTH];         //Hashing individual blocks
- 		MD5(curr, sizeof(curr)/sizeof(curr[0]), RES);
+ 		MD5(curr, BLOCK_SIZE*sizeof(char), RES);
 
 		for(i=0; i<MD5_DIGEST_LENGTH; i++)
 	 		hashed_blocks[hash_count][i] = RES[i];
@@ -112,11 +112,17 @@ int main(int argc, char** argv)
 		// }
 	}
 
+	if(rank==0)
+	{
+				start = MPI_Wtime();
+
+	}
+
 	//Padding unecessary for current hashing algo (MD5) (For blocks with size<BLOCK_SIZE)
 	if(result<BLOCK_SIZE && result>0)
 	{
 		unsigned char RES[MD5_DIGEST_LENGTH];        
- 		MD5(curr, sizeof(curr)/sizeof(curr[0]), RES);
+ 		MD5(curr, BLOCK_SIZE*sizeof(unsigned char), RES);
 
  		for(i=0; i<MD5_DIGEST_LENGTH; i++)
 	 		hashed_blocks[hash_count][i] = RES[i];
@@ -192,7 +198,7 @@ int main(int argc, char** argv)
 			printf("%02x", hashed_blocks[0][i]);
 		printf("\n");
 
-		printf("Time taken by %d processes is %f\n",size, stop-start);
+		//printf("Time taken by %d processes is %f\n",size, stop-start);
 	}
 
 	MPI_Finalize();
